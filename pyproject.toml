@@ -1,7 +1,7 @@
 [project]
 name = "gradvision-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Backend server implementation for GradVision."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -9,3 +9,6 @@ dependencies = [
     "sqlalchemy>=2.1.4",
     "uvicorn[standard]>=0.54.0",
 ]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
