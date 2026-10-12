@@ -1,7 +1,3 @@
-# GradVision API file (OpenAPI / Swagger)
-# This file lists every endpoint our FastAPI backend will have, what you send to it,
-
-# which version of the OpenAPI format we are using
 openapi: 3.0.3
 
 # basic info about our API (shows at the top of the swagger page)
