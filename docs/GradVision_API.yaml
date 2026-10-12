@@ -1,0 +1,1116 @@
+# GradVision API file (OpenAPI / Swagger)
+# This file lists every endpoint our FastAPI backend will have, what you send to it,
+
+# which version of the OpenAPI format we are using
+openapi: 3.0.3
+
+# basic info about our API (shows at the top of the swagger page)
+info:
+  title: GradVision API
+  description: Backend API for GradVision, a graduate school planning website (COMPE561 group project).
+  version: 1.0.0
+
+# where the backend runs. for now its just our laptop when we run uv run fastapi dev
+servers:
+  - url: http://localhost:8000
+    description: Local FastAPI server
+
+# tags are just groups so the endpoints are organized into sections on the swagger page
+tags:
+  - name: Auth
+  - name: Users
+  - name: Search
+  - name: Universities and Programs
+  - name: Professors and Papers
+  - name: Saved Programs
+  - name: Applications
+  - name: Tasks and Calendar
+
+# by default every endpoint needs you to be logged in (JWT token).
+# endpoints that say security: [] are public and dont need a token
+security:
+  - bearerAuth: []
+
+# ---------------------------------------------------------------
+# PATHS = all of our endpoints
+# each one has: the url, the method (get/post/patch/delete),
+# what we send (parameters or requestBody) and what comes back (responses)
+# ---------------------------------------------------------------
+paths:
+  # ---------------- Auth ----------------
+  # user types email + password, backend checks them and sends back 2 tokens
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in as an existing user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # logs the user out by getting rid of their refresh token
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # the access token runs out after ~30 min, so the frontend calls this to get a new one
+  # that way the user doesnt get kicked out and have to log in again
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Get a new access token when the old one expires
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: bearer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------------- Users ----------------
+  # sign up. this is the only users endpoint you can use without being logged in
+  /api/users:
+    post:
+      tags: [Users]
+      summary: Create a new user (sign up)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # get / update / delete one user. {id} gets replaced by the actual user id, like /api/users/5
+  /api/users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Users]
+      summary: Get a user's profile (My Vision page)
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Users]
+      summary: Update a user's profile
+      description: >
+        Used after onboarding to add graduate school interests (research interests, career goals,
+        program interests), and later to edit any profile info. Only send the fields you want to change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Users]
+      summary: Delete a user profile
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------- Search ----------------
+  # main search on the Explore page. all the filters are optional,
+  # so you can send none of them or all of them
+  /api/search/:
+    get:
+      tags: [Search]
+      summary: Search programs (Explore page)
+      description: Returns programs that match the user's interests and the filters on the Explore page.
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+          description: Text typed in the search bar
+        - name: research_interests
+          in: query
+          schema:
+            type: string
+        - name: career_goals
+          in: query
+          schema:
+            type: string
+        - name: program_interests
+          in: query
+          schema:
+            type: string
+        - name: year_completed
+          in: query
+          schema:
+            type: integer
+        - name: field
+          in: query
+          schema:
+            type: string
+        - name: degree_type
+          in: query
+          schema:
+            type: string
+            enum: [Masters, PhD, Combined]
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: funding_available
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Matching programs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProgramSummary'
+
+  # search professors, for the Professors tab on the Explore page
+  /api/search/professors/:
+    get:
+      tags: [Search]
+      summary: Search professors at a university
+      parameters:
+        - name: university
+          in: query
+          schema:
+            type: string
+        - name: research_interests
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching professors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Professor'
+
+  # ---------------- Universities and Programs ----------------
+  # list of all the universities we have in our database
+  /api/universities/:
+    get:
+      tags: [Universities and Programs]
+      summary: Get list of universities
+      security: []
+      responses:
+        '200':
+          description: List of universities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/University'
+
+  # full details for one program (what shows when you click View on a program card)
+  /api/program/{program_id}:
+    get:
+      tags: [Universities and Programs]
+      summary: Get information about one program
+      security: []
+      parameters:
+        - name: program_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Program details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Program'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------- Professors and Papers ----------------
+  # all papers from one professor (this data comes from OpenAlex)
+  /api/professors/{id}/papers:
+    get:
+      tags: [Professors and Papers]
+      summary: Get all papers by one professor
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of papers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Paper'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # search papers by keyword / professor / year, for the Research tab
+  /api/papers:
+    get:
+      tags: [Professors and Papers]
+      summary: Search papers (optional, Explore page)
+      security: []
+      parameters:
+        - name: professor_id
+          in: query
+          schema:
+            type: integer
+        - name: query
+          in: query
+          schema:
+            type: string
+          description: Keywords
+        - name: year_published
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of papers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Paper'
+
+  # ---------------- Saved Programs ----------------
+  # programs the user clicked Save on
+  /api/users/{id}/saved_programs/:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Saved Programs]
+      summary: Get all programs the user saved
+      responses:
+        '200':
+          description: Saved programs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProgramSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # save button on a program card
+  /api/users/{id}/save_program/:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    patch:
+      tags: [Saved Programs]
+      summary: Save a program to the user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgramIdRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # unsave button
+  /api/users/{id}/unsave_program/:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    patch:
+      tags: [Saved Programs]
+      summary: Remove a saved program from the user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgramIdRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------- Applications ----------------
+  # application tracker on the dashboard
+  # GET = see all your applications, POST = the Add to Applications button
+  /api/users/{id}/applications/:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Applications]
+      summary: Get all of the user's applications (dashboard tracker)
+      responses:
+        '200':
+          description: List of applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Application'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Applications]
+      summary: Add a program to the user's applications ("Add to Applications" button)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgramIdRequest'
+      responses:
+        '201':
+          description: Application created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  application:
+                    $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # update one application (change status, check off transcripts, recs, etc) or delete it
+  /api/applications/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      tags: [Applications]
+      summary: Update an application's status or check off requirements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Applications]
+      summary: Remove an application from the tracker
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------- Tasks and Calendar ----------------
+  # deadlines + events for the calendar on the dashboard
+  /api/users/{id}/calendar/:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Tasks and Calendar]
+      summary: Get due dates and important events for the calendar
+      responses:
+        '200':
+          description: Calendar events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarEvent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # to-do list on the dashboard
+  /api/users/{id}/tasks/:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Tasks and Calendar]
+      summary: Get the user's task list
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Tasks and Calendar]
+      summary: Add a new task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  task:
+                    $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # edit / finish / delete one task
+  /api/tasks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      tags: [Tasks and Calendar]
+      summary: Edit a task or mark it as done
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Tasks and Calendar]
+      summary: Delete a task
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+# ---------------------------------------------------------------
+# COMPONENTS = reusable pieces
+# instead of writing the same thing over and over in every endpoint,
+# we write it once here and point to it with $ref
+# ---------------------------------------------------------------
+components:
+
+  # says we log in with JWT bearer tokens (sent in the Authorization header)
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # the {id} in the url, used by a bunch of the user endpoints
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: The user's id
+      schema:
+        type: integer
+
+  # common responses. every error uses the same ErrorResponse format: { success: false, error: "..." }
+  responses:
+    Success:
+      description: Success
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SuccessResponse'
+    BadRequest:
+      description: Bad request (for example, email already used)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Not logged in, or the token is invalid or expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Trying to see or change another user's data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Item not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Missing or wrong input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  # schemas = the shape of the data (basically our data models written as JSON)
+  # these line up with the models in our Backend Wireframe doc and later our Pydantic schemas
+  schemas:
+    # what we send back when something works
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+
+    # what we send back when something goes wrong
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Program not found
+
+    # ---- auth stuff ----
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: bearer
+
+    ProgramIdRequest:
+      type: object
+      required: [program_id]
+      properties:
+        program_id:
+          type: integer
+          example: 1
+
+    # ---- user stuff ----
+    # one school the user went to before. a user can have more than one
+    PastEducation:
+      type: object
+      required: [university_name, degree, year_started, year_ended, currently_attending]
+      properties:
+        education_id:
+          type: integer
+          readOnly: true
+        university_name:
+          type: string
+          example: San Diego State University
+        major:
+          type: string
+          example: Computer Engineering
+        degree:
+          type: string
+          example: BS
+        year_started:
+          type: integer
+          example: 2023
+        year_ended:
+          type: integer
+          example: 2027
+        currently_attending:
+          type: boolean
+          example: true
+
+    # what the frontend sends when someone signs up
+    UserCreate:
+      type: object
+      required: [first_name, last_name, email, password]
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        past_education:
+          type: array
+          items:
+            $ref: '#/components/schemas/PastEducation'
+
+    # what the frontend sends when editing the profile (or after the onboarding survey)
+    UserUpdate:
+      type: object
+      description: All fields are optional. Only send what you want to change.
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        past_education:
+          type: array
+          items:
+            $ref: '#/components/schemas/PastEducation'
+        research_interests:
+          type: array
+          items:
+            type: string
+        career_goals:
+          type: array
+          items:
+            type: string
+        program_interests:
+          type: array
+          items:
+            type: string
+        personal_statement:
+          type: string
+
+    # what the backend sends back. notice theres no password here, we never send that back
+    User:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        past_education:
+          type: array
+          items:
+            $ref: '#/components/schemas/PastEducation'
+        research_interests:
+          type: array
+          items:
+            type: string
+          example: [machine learning, computer networks]
+        career_goals:
+          type: array
+          items:
+            type: string
+          example: [professor]
+        program_interests:
+          type: array
+          items:
+            type: string
+          example: [PhD in Computer Engineering]
+        personal_statement:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # ---- explore page stuff ----
+    University:
+      type: object
+      properties:
+        university_id:
+          type: integer
+        university_name:
+          type: string
+          example: UC San Diego
+        location:
+          type: string
+          example: La Jolla, CA
+        programs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgramSummary'
+        professors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Professor'
+
+    # small version of a program, just enough for the cards on the Explore page
+    ProgramSummary:
+      type: object
+      description: Short version of a program, used for cards on the Explore page
+      properties:
+        program_id:
+          type: integer
+        program_name:
+          type: string
+          example: Computer Science
+        degree_type:
+          type: string
+          example: Masters
+        university_name:
+          type: string
+          example: UC San Diego
+        program_start:
+          type: integer
+          example: 2027
+        program_end:
+          type: integer
+          example: 2029
+
+    # full version of a program with everything
+    Program:
+      type: object
+      properties:
+        program_id:
+          type: integer
+        university_id:
+          type: integer
+        program_name:
+          type: string
+          example: Computer Science
+        degree_type:
+          type: string
+          enum: [Masters, PhD, Combined]
+        field:
+          type: string
+          example: Engineering
+        funding_available:
+          type: boolean
+        due_dates:
+          type: array
+          items:
+            type: string
+            format: date
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarEvent'
+        application_requirements:
+          type: array
+          items:
+            type: string
+          example: [transcripts, 3 recommendation letters, statement of purpose]
+        application_link:
+          type: string
+        program_start:
+          type: integer
+        program_end:
+          type: integer
+        program_content:
+          type: array
+          items:
+            type: string
+        price:
+          type: integer
+          example: 30000
+
+    Professor:
+      type: object
+      properties:
+        professor_id:
+          type: integer
+        name:
+          type: string
+        department:
+          type: string
+        university_id:
+          type: integer
+        research_interests:
+          type: array
+          items:
+            type: string
+        research_papers:
+          type: array
+          items:
+            type: string
+
+    # research paper, mostly filled in from OpenAlex
+    Paper:
+      type: object
+      properties:
+        paper_id:
+          type: integer
+        title:
+          type: string
+        authors:
+          type: array
+          items:
+            type: string
+        professor_ids:
+          type: array
+          items:
+            type: integer
+        topics:
+          type: array
+          items:
+            type: string
+        abstract:
+          type: string
+        publication_date:
+          type: string
+          format: date
+        external_id_openalex:
+          type: string
+          example: W2741809807
+        link:
+          type: string
+
+    # ---- dashboard stuff ----
+    # one application in the tracker. the _done fields are the checkboxes
+    Application:
+      type: object
+      properties:
+        application_id:
+          type: integer
+        user_id:
+          type: integer
+        program_id:
+          type: integer
+        program_name:
+          type: string
+        university_name:
+          type: string
+        status:
+          type: string
+          enum: [not started, in progress, submitted, accepted, rejected]
+          default: not started
+        transcripts_done:
+          type: boolean
+          default: false
+        recommendations_done:
+          type: boolean
+          default: false
+        statement_done:
+          type: boolean
+          default: false
+        test_scores_done:
+          type: boolean
+          default: false
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # only send the fields you want to change
+    ApplicationUpdate:
+      type: object
+      description: All fields are optional. Only send what you want to change.
+      properties:
+        status:
+          type: string
+          enum: [not started, in progress, submitted, accepted, rejected]
+        transcripts_done:
+          type: boolean
+        recommendations_done:
+          type: boolean
+        statement_done:
+          type: boolean
+        test_scores_done:
+          type: boolean
+        notes:
+          type: string
+
+    # one item on the to-do list. can be linked to an application but doesnt have to be
+    Task:
+      type: object
+      properties:
+        task_id:
+          type: integer
+        user_id:
+          type: integer
+        application_id:
+          type: integer
+          nullable: true
+        title:
+          type: string
+          example: Ask Dr. Smith for a recommendation letter
+        due_date:
+          type: string
+          format: date-time
+        completed:
+          type: boolean
+          default: false
+
+    TaskCreate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        application_id:
+          type: integer
+          nullable: true
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        completed:
+          type: boolean
+
+    # one thing that shows on the calendar
+    CalendarEvent:
+      type: object
+      properties:
+        event_name:
+          type: string
+          example: Application deadline - UC San Diego CS Masters
+        event_date:
+          type: string
+          format: date
