@@ -196,29 +196,13 @@ paths:
     get:
       tags: [Search]
       summary: Search programs (Explore page)
-      description: Returns programs that match the user's interests and the filters on the Explore page.
+      description: Returns programs that match the filters typed/selected on the Explore page.
       parameters:
         - name: query
           in: query
           schema:
             type: string
           description: Text typed in the search bar
-        - name: research_interests
-          in: query
-          schema:
-            type: string
-        - name: career_goals
-          in: query
-          schema:
-            type: string
-        - name: program_interests
-          in: query
-          schema:
-            type: string
-        - name: year_completed
-          in: query
-          schema:
-            type: integer
         - name: field
           in: query
           schema:
@@ -236,6 +220,14 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
       responses:
         '200':
           description: Matching programs
@@ -244,7 +236,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ProgramSummary'
+                  $ref: '#/components/schemas/ProgramSearchResult'
 
   # search professors, for the Professors tab on the Explore page
   /api/search/professors/:
@@ -271,21 +263,48 @@ paths:
                   $ref: '#/components/schemas/Professor'
 
   # ---------------- Universities and Programs ----------------
-  # list of all the universities we have in our database
+  # list of all the universities we have in our database (filterable, summary info only)
   /api/universities/:
     get:
       tags: [Universities and Programs]
       summary: Get list of universities
       security: []
+      parameters:
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Match against university name
+        - name: program_fields
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          description: Filter to universities that have programs in any of these fields
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
       responses:
         '200':
-          description: List of universities
+          description: List of universities (summary info - counts, not full nested lists)
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/University'
+                  $ref: '#/components/schemas/UniversitySummary'
 
   # full details for one program (what shows when you click View on a program card)
   /api/program/{program_id}:
@@ -366,7 +385,7 @@ paths:
 
   # ---------------- Saved Programs ----------------
   # programs the user clicked Save on
-  /api/users/{id}/saved_programs/:
+  /api/users/{id}/saved-programs/:
     parameters:
       - $ref: '#/components/parameters/UserId'
     get:
@@ -383,12 +402,7 @@ paths:
                   $ref: '#/components/schemas/ProgramSummary'
         '401':
           $ref: '#/components/responses/Unauthorized'
-
-  # save button on a program card
-  /api/users/{id}/save_program/:
-    parameters:
-      - $ref: '#/components/parameters/UserId'
-    patch:
+    post:
       tags: [Saved Programs]
       summary: Save a program to the user's profile
       requestBody:
@@ -398,26 +412,29 @@ paths:
             schema:
               $ref: '#/components/schemas/ProgramIdRequest'
       responses:
-        '200':
-          $ref: '#/components/responses/Success'
+        '201':
+          description: Program saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 
   # unsave button
-  /api/users/{id}/unsave_program/:
+  /api/users/{id}/saved-programs/{program_id}:
     parameters:
       - $ref: '#/components/parameters/UserId'
-    patch:
+      - name: program_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
       tags: [Saved Programs]
       summary: Remove a saved program from the user's profile
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ProgramIdRequest'
       responses:
         '200':
           $ref: '#/components/responses/Success'
@@ -856,10 +873,34 @@ components:
         created_at:
           type: string
           format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     # ---- explore page stuff ----
+    # short version of a university for the list view (/api/universities/) - counts only,
+    # no nested program/professor arrays
+    UniversitySummary:
+      type: object
+      properties:
+        university_id:
+          type: integer
+        university_name:
+          type: string
+          example: UC San Diego
+        location:
+          type: string
+          example: La Jolla, CA
+        program_count:
+          type: integer
+          example: 12
+        professor_count:
+          type: integer
+          example: 48
+
     University:
       type: object
+      description: Full university detail, including nested programs and professors.
       properties:
         university_id:
           type: integer
@@ -878,10 +919,10 @@ components:
           items:
             $ref: '#/components/schemas/Professor'
 
-    # small version of a program, just enough for the cards on the Explore page
+    # small version of a program, just enough for the cards on saved programs / Explore page
     ProgramSummary:
       type: object
-      description: Short version of a program, used for cards on the Explore page
+      description: Short version of a program, used for cards on the Explore page and saved programs list
       properties:
         program_id:
           type: integer
@@ -900,6 +941,42 @@ components:
         program_end:
           type: integer
           example: 2029
+
+    # result row for /api/search/ - needs more fields than ProgramSummary so it gets its own schema
+    ProgramSearchResult:
+      type: object
+      description: One matching program from a search, with enough info to filter/compare on the Explore page
+      properties:
+        program_id:
+          type: integer
+        program_name:
+          type: string
+          example: Computer Science
+        degree_type:
+          type: string
+          example: Masters
+        field:
+          type: string
+          example: Engineering
+        price:
+          type: integer
+          example: 30000
+        funding_available:
+          type: boolean
+        university:
+          type: object
+          properties:
+            university_id:
+              type: integer
+            university_name:
+              type: string
+              example: UC San Diego
+            location:
+              type: string
+              example: La Jolla, CA
+        next_deadline:
+          type: string
+          format: date
 
     # full version of a program with everything
     Program:
@@ -920,11 +997,6 @@ components:
           example: Engineering
         funding_available:
           type: boolean
-        due_dates:
-          type: array
-          items:
-            type: string
-            format: date
         events:
           type: array
           items:
@@ -960,10 +1032,6 @@ components:
         university_id:
           type: integer
         research_interests:
-          type: array
-          items:
-            type: string
-        research_papers:
           type: array
           items:
             type: string
@@ -1035,6 +1103,9 @@ components:
         created_at:
           type: string
           format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     # only send the fields you want to change
     ApplicationUpdate:
@@ -1100,13 +1171,21 @@ components:
         completed:
           type: boolean
 
-    # one thing that shows on the calendar
+    # one thing that shows on the calendar - matches the Event data model
+    # (program_id, label, event_type, event_date)
     CalendarEvent:
       type: object
       properties:
-        event_name:
+        event_id:
+          type: integer
+        program_id:
+          type: integer
+        label:
           type: string
           example: Application deadline - UC San Diego CS Masters
+        event_type:
+          type: string
+          example: deadline
         event_date:
           type: string
           format: date
