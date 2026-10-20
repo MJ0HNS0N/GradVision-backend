@@ -1,0 +1,60 @@
+"""Application and task (dashboard) schemas."""
+
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
+
+from app.models.models import ApplicationStatus
+
+
+class Application(BaseModel):
+    """program_name / university_name are joined in, same caveat as
+    ProgramSummary. TODO: handle those columns via a join or hybrid / association_proxy."""
+    model_config = ConfigDict(from_attributes=True)
+
+    application_id: int
+    user_id: int
+    program_id: int
+    program_name: str
+    university_name: str
+    status: ApplicationStatus = ApplicationStatus.not_started
+    transcripts_done: bool = False
+    recommendations_done: bool = False
+    statement_done: bool = False
+    test_scores_done: bool = False
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ApplicationUpdate(BaseModel):
+    status: Optional[ApplicationStatus] = None
+    transcripts_done: Optional[bool] = None
+    recommendations_done: Optional[bool] = None
+    statement_done: Optional[bool] = None
+    test_scores_done: Optional[bool] = None
+    notes: Optional[str] = None
+
+
+class TaskCreate(BaseModel):
+    title: str
+    due_date: Optional[datetime] = None
+    application_id: Optional[int] = None
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    due_date: Optional[datetime] = None
+    completed: Optional[bool] = None
+
+
+class Task(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    task_id: int
+    user_id: int
+    application_id: Optional[int] = None
+    title: str
+    due_date: Optional[datetime] = None
+    completed: bool = False
