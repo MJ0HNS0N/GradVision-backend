@@ -23,10 +23,7 @@ class CalendarEvent(BaseModel):
 
 
 class ProgramSummary(BaseModel):
-    """Short card view used on the Explore page and saved-programs list.
-    TODO: university_name isn't a column on Program — handle joining it in from University
-    (or expose it as a hybrid_property on the Program model) before
-    model_validate'ing this schema."""
+    """Short card view used on the Explore page and saved-programs list."""
     model_config = ConfigDict(from_attributes=True)
 
     program_id: int

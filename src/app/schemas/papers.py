@@ -3,14 +3,12 @@
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
 
 
 class Paper(BaseModel):
-    """TODO: professor_ids comes from the ProfessorPaper association rows, not a
-    plain column — build it with e.g.
-        Paper(**paper.__dict__, professor_ids=[pp.professor_id for pp in paper.professors])
-    or add a `professor_ids` hybrid/association_proxy on the Paper model."""
+    model_config = ConfigDict(from_attributes=True)
 
     paper_id: int
     title: str

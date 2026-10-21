@@ -27,3 +27,13 @@ or you can alternatively do:
 uv run uvicorn app.main:app --reload
 ```
 
+Alternatively if you don't want to switch directories, you can also just run:
+
+```bash
+uv run uvicorn app.main:app --reload --app-dir src
+```
+
+## Repository Structure
+Placeholder until features are built out
+
+

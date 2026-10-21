@@ -9,8 +9,6 @@ from app.models.models import ApplicationStatus
 
 
 class Application(BaseModel):
-    """program_name / university_name are joined in, same caveat as
-    ProgramSummary. TODO: handle those columns via a join or hybrid / association_proxy."""
     model_config = ConfigDict(from_attributes=True)
 
     application_id: int
