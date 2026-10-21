@@ -3,10 +3,12 @@
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
 
 
 class Paper(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
     paper_id: int
     title: str

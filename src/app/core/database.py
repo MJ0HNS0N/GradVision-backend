@@ -4,7 +4,7 @@ that gradvision_models.py builds on.
 """
 
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 # Swap this for your real Postgres URL in production / via env var.
@@ -14,6 +14,14 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./gradvision.db")
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
+
+# SQLite ignores foreign keys (incl. ON DELETE CASCADE) unless this is set per connection.
+# Postgres enforces them already, so this only applies to local SQLite.
+if DATABASE_URL.startswith("sqlite"):
+    @event.listens_for(engine, "connect") # run this each time a new connection is made
+    def _enable_sqlite_fks(dbapi_conn, _):
+        dbapi_conn.execute("PRAGMA foreign_keys=ON")
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

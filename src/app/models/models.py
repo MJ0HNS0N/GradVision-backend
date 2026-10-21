@@ -27,7 +27,7 @@ from sqlalchemy import (
     String, Text, Integer, Boolean, Date, DateTime, ForeignKey, JSON, Enum, func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.associationproxy import AssociationProxy, association_proxy
 
 from app.core.database import Base
 
@@ -146,7 +146,7 @@ class Program(Base):
     price: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     university: Mapped["University"] = relationship(back_populates="programs")
-    university_name: Mapped[str] = association_proxy("university", "university_name")
+    university_name: AssociationProxy[str] = association_proxy("university", "university_name")
     events: Mapped[list["Event"]] = relationship(back_populates="program")
 
     # reverse side of user-owned join tables -> fine to cascade from here too,
@@ -197,7 +197,7 @@ class Paper(Base):
     link: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     professors: Mapped[list["ProfessorPaper"]] = relationship(back_populates="paper")
-    professor_ids: list[int] = association_proxy("professors", "professor_id")
+    professor_ids: AssociationProxy[list[int]] = association_proxy("professors", "professor_id")
 
 
 class ProfessorPaper(Base):
@@ -261,7 +261,7 @@ class Application(Base):
 
     user: Mapped["User"] = relationship(back_populates="applications")
     program: Mapped["Program"] = relationship(back_populates="applications")
-    program_name: str = association_proxy("program", "program_name")
+    program_name: AssociationProxy[str] = association_proxy("program", "program_name")
 
     @property
     def university_name(self) -> str:
