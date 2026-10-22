@@ -5,6 +5,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import users as users_routes
+from app.routes import programs
+from app.routes import papers
 from app.routes import auth as auth_routes
 from app.routes import applications as applications_routes
 from app.routes import task as tasks_routes
@@ -45,6 +47,9 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 app.include_router(users_routes.router, prefix="/api")
+programs.register(app) # add endpoints relating to programs/universities
+papers.register(app) # add endpoints relating to papers
+
 app.include_router(auth_routes.router, prefix="/api")
 app.include_router(applications_routes.router, prefix="/api")
 app.include_router(tasks_routes.router, prefix="/api")
