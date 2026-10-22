@@ -14,7 +14,7 @@ from app.core.security import (
 from app.core.database import get_db
 from app.crud import auth as auth_crud
 from app.crud.user import get_user_by_id
-from app.models.models import User as UserModel
+from app.models import User as UserModel
 from app.schemas.auth import LoginRequest, RefreshRequest
 from app.schemas.common import SuccessResponse
 from app.schemas.token import Token

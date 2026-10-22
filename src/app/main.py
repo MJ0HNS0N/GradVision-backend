@@ -43,7 +43,6 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 app.include_router(users_routes.router, prefix="/api")
 app.include_router(auth_routes.router, prefix="/api")
-app.include_router(users_routes.router, prefix="/api")
 
 @app.get("/")
 async def root():
