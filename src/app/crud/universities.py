@@ -1,28 +1,68 @@
-from sqlalchemy.orm import Session
-from models import University, Program
-from schemas import ProfessorRead, University
-from schemas import ProgramSummary, Program
-from user import get_user_by_id as get_user
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
-def search_universities(db:Session, user_id: int, location: str = None, program_type: str = None):
-    user = get_user(db, user_id)
-    if not user:
-        return []
+from app.models.models import (
+    Professor as ProfessorModel,
+    Program as ProgramModel,
+    University as UniversityModel,
+)
 
-    programs = db.query(Program).filter(Program.program_type == program_type, Program.field == user.program_interests).all()
-    universities = db.query(University).filter(University.location == location, University.programs == programs).all()
-    return universities
 
-def get_professors(db:Session, university_id: int, user_id: int):
-    user = get_user(db, user_id)
-    if not user:
-        return []
-    return db.query(ProfessorRead).filter(ProfessorRead.university_id == university_id, ProfessorRead.research_interests == user.research_interests).all()
+def search_universities(
+    db: Session,
+    location: str | None = None,
+    search: str | None = None,
+    program_fields: list[str] | None = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    query = (
+        select(UniversityModel)
+        .options(
+            selectinload(UniversityModel.programs),
+            selectinload(UniversityModel.professors),
+        )
+    )
 
-def get_programs_from_university(db:Session, university_id: int, field: str = None, degree_type: str = None):
-    query = db.query(ProgramSummary).filter(ProgramSummary.university_id == university_id)
-    if field:
-        query = query.filter(ProgramSummary.field == field)
-    if degree_type:
-        query = query.filter(ProgramSummary.degree_type == degree_type)
-    return query.all()
+    if location:
+        query = query.where(UniversityModel.location == location)
+
+    if search:
+        query = query.where(
+            UniversityModel.university_name.ilike(f"%{search}%")
+        )
+
+    if program_fields:
+        query = (
+            query.join(UniversityModel.programs)
+            .where(ProgramModel.field.in_(program_fields))
+            .distinct()
+        )
+
+    universities = db.execute(
+        query.offset(offset).limit(limit)
+    ).scalars().all()
+
+    return [
+        {
+            "university_id": university.university_id,
+            "university_name": university.university_name,
+            "location": university.location,
+            "program_count": len(university.programs),
+            "professor_count": len(university.professors),
+        }
+        for university in universities
+    ]
+
+
+def get_professors(
+    db: Session,
+    university_id: int,
+):
+    return list(
+        db.execute(
+            select(ProfessorModel).where(
+                ProfessorModel.university_id == university_id
+            )
+        ).scalars()
+    )

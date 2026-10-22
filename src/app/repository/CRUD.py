@@ -1,4 +1,4 @@
-#holding in case we are missing any of the operations in the crud folder
+"""holding in case we are missing any of the operations in the crud folder
 
 from sqlalchemy.orm import Session
 from models import User, Professor, University, Program, SavedProgram, CalendarEvent
@@ -171,5 +171,4 @@ def remove_task(db:Session, task_id: int, user_id: int):
     if task:
         db.delete(task)
         db.commit()
-    return task
-
+    return task"""

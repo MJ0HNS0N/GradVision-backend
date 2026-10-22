@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from schemas import SavedProgram, ProgramSummary
+from schemas.programs import SavedProgram, ProgramSummary
 from user import get_user_by_id as get_user
 
 def get_program(db:Session, program_id: int):
