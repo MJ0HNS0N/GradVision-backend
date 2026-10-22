@@ -20,18 +20,6 @@ def get_program(db: Session, program_id: int) -> Program | None:
     return db.execute(query).scalar_one_or_none()
 
 
-def save_program(db:Session, program_id: int, user_id: int):
-    user = get_user(db, user_id)
-    program = get_program(db, program_id)
-    
-    if program and user:
-        saved_program = SavedProgram(user_id=user_id, program_id=program_id)
-        db.add(saved_program)
-        db.commit()
-        db.refresh(saved_program)
-        user.saved_programs.append(saved_program)
-        return saved_program
-    return []
 
 def remove_program(db:Session, program_id: int, user_id: int):
     user = get_user(db, user_id)
