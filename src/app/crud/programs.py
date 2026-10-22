@@ -1,41 +1,14 @@
-from sqlalchemy.orm import Session
+"""Database operations for program catalog rows."""
 
-from schemas import SavedProgram, ProgramSummary
-from user import get_user_by_id as get_user
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
-def get_program(db:Session, program_id: int):
-    return db.query(ProgramSummary).filter(ProgramSummary.program_id == program_id).first()
+from app.models.models import Program as ProgramModel
 
-def save_program(db:Session, program_id: int, user_id: int):
-    user = get_user(db, user_id)
-    program = get_program(db, program_id)
-    
-    if program and user:
-        saved_program = SavedProgram(user_id=user_id, program_id=program_id)
-        db.add(saved_program)
-        db.commit()
-        db.refresh(saved_program)
-        user.saved_programs.append(saved_program)
-        return saved_program
-    return []
 
-def remove_program(db:Session, program_id: int, user_id: int):
-    user = get_user(db, user_id)
-    program = get_program(db, program_id)
-
-    if program and user:
-        saved_program = db.query(SavedProgram).filter(SavedProgram.user_id == user_id, SavedProgram.program_id == program_id).first()
-        if saved_program:
-            db.delete(saved_program)
-            db.commit()
-            user.saved_programs.remove(saved_program)
-            return saved_program
-    return []
-        
-
-def get_saved_programs(db:Session, user_id: int):
-    user = get_user(db, user_id)
-    if not user:
-        return []
-    
-    return user.saved_programs
+def get_program_by_id(db: Session, program_id: int) -> ProgramModel | None:
+    return db.execute(
+        select(ProgramModel)
+        .where(ProgramModel.program_id == program_id)
+        .options(selectinload(ProgramModel.university))
+    ).scalar_one_or_none()
