@@ -4,7 +4,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import users as users_routes
+from app.routes import users as users_routes
+from app.routes import auth as auth_routes
 from app.core.database import Base, engine
 from app.core.exceptions import http_exception_handler, validation_exception_handler
 from app.models import models  # noqa: F401 — register ORM tables with Base.metadata
@@ -41,7 +42,7 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 app.include_router(users_routes.router, prefix="/api")
-
+app.include_router(auth_routes.router, prefix="/api")
 
 @app.get("/")
 async def root():
