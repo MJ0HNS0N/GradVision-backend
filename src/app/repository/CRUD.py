@@ -1,66 +1,68 @@
-# from sqlalchemy.orm import Session
-# from models import User, Professor, University, Program, SavedProgram, CalendarEvent
-# from schemas import UserCreate, UserUpdate 
-# from schemas import ProfessorRead, UniversitySummary, University
-# from schemas import ProgramSummary, Program, Application
-# from schemas import ProfessorRead, Paper
-# from schemas import CalendarEvent
+#holding in case we are missing any of the operations in the crud folder
 
-# def create_user(db:Session, user: UserCreate):
-#     db_user = User(**user.dict())
-#     db.add(db_user)
-#     db.commit()
-#     db.refresh(db_user)
-#     return db_user
+from sqlalchemy.orm import Session
+from models import User, Professor, University, Program, SavedProgram, CalendarEvent
+from schemas import UserCreate, UserUpdate 
+from schemas import ProfessorRead, UniversitySummary, University
+from schemas import ProgramSummary, Program, Application
+from schemas import ProfessorRead, Paper
+from schemas import CalendarEvent
 
-# def get_user(db:Session, user_id: int):
-#     return db.query(User).filter(User.id == user_id).first()
+def create_user(db:Session, user: UserCreate):
+    db_user = User(**user.dict())
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
 
-# def update_user(db:Session, user_id: int, user: UserUpdate):
-#     db_user = get_user(db, user_id)
-#     if db_user:
-#         for key, value in user.dict().items():
-#             setattr(db_user, key, value)
-#         db.commit()
-#         db.refresh(db_user)
-#     return db_user
+def get_user(db:Session, user_id: int):
+    return db.query(User).filter(User.id == user_id).first()
 
-# def delete_user(db:Session, user_id: int):
-#     db_user = get_user(db, user_id)
-#     if db_user:
-#         db.delete(db_user)
-#         db.commit()
-#     return db_user
+def update_user(db:Session, user_id: int, user: UserUpdate):
+    db_user = get_user(db, user_id)
+    if db_user:
+        for key, value in user.dict().items():
+            setattr(db_user, key, value)
+        db.commit()
+        db.refresh(db_user)
+    return db_user
 
-# def search_universities(db:Session, user_id: int, location: str = None, program_type: str = None):
-#     user = get_user(db, user_id)
-#     if not user:
-#         return []
+def delete_user(db:Session, user_id: int):
+    db_user = get_user(db, user_id)
+    if db_user:
+        db.delete(db_user)
+        db.commit()
+    return db_user
 
-#     programs = db.query(Program).filter(Program.program_type == program_type, Program.field == user.program_interests).all()
-#     universities = db.query(University).filter(University.location == location, University.programs == programs).all()
-#     return universities
+def search_universities(db:Session, user_id: int, location: str = None, program_type: str = None):
+    user = get_user(db, user_id)
+    if not user:
+        return []
 
-# def get_professors(db:Session, university_id: int, user_id: int):
-#     user = get_user(db, user_id)
-#     if not user:
-#         return []
-#     return db.query(ProfessorRead).filter(ProfessorRead.university_id == university_id, ProfessorRead.research_interests == user.research_interests).all()
+    programs = db.query(Program).filter(Program.program_type == program_type, Program.field == user.program_interests).all()
+    universities = db.query(University).filter(University.location == location, University.programs == programs).all()
+    return universities
 
-# def get_programs_from_university(db:Session, university_id: int, field: str = None, degree_type: str = None):
-#     query = db.query(ProgramSummary).filter(ProgramSummary.university_id == university_id)
-#     if field:
-#         query = query.filter(ProgramSummary.field == field)
-#     if degree_type:
-#         query = query.filter(ProgramSummary.degree_type == degree_type)
-#     return query.all()
+def get_professors(db:Session, university_id: int, user_id: int):
+    user = get_user(db, user_id)
+    if not user:
+        return []
+    return db.query(ProfessorRead).filter(ProfessorRead.university_id == university_id, ProfessorRead.research_interests == user.research_interests).all()
 
-# def get_program(db:Session, program_id: int):
-#     return db.query(ProgramSummary).filter(ProgramSummary.program_id == program_id).first()
+def get_programs_from_university(db:Session, university_id: int, field: str = None, degree_type: str = None):
+    query = db.query(ProgramSummary).filter(ProgramSummary.university_id == university_id)
+    if field:
+        query = query.filter(ProgramSummary.field == field)
+    if degree_type:
+        query = query.filter(ProgramSummary.degree_type == degree_type)
+    return query.all()
 
-# def save_program(db:Session, program_id: int, user_id: int):
-#     user = get_user(db, user_id)
-#     program = get_program(db, program_id)
+def get_program(db:Session, program_id: int):
+    return db.query(ProgramSummary).filter(ProgramSummary.program_id == program_id).first()
+
+def save_program(db:Session, program_id: int, user_id: int):
+    user = get_user(db, user_id)
+    program = get_program(db, program_id)
     
 #     if program and user:
 #         saved_program = SavedProgram(user_id=user_id, program_id=program_id)

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes import users as users_routes
 from app.routes import programs
 from app.routes import papers
+from app.routes import auth as auth_routes
 from app.core.database import Base, engine
 from app.core.exceptions import http_exception_handler, validation_exception_handler
 from app.models import models  # noqa: F401 — register ORM tables with Base.metadata
@@ -46,6 +47,7 @@ app.include_router(users_routes.router, prefix="/api")
 programs.register(app) # add endpoints relating to programs/universities
 papers.register(app) # add endpoints relating to papers
 
+app.include_router(auth_routes.router, prefix="/api")
 
 @app.get("/")
 async def root():

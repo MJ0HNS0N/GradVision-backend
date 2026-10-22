@@ -91,4 +91,3 @@ def delete_user(
         )
     user_crud.delete_user(db, user)
     return SuccessResponse()
-
